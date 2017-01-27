@@ -11,6 +11,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.filter.LoggingFilter;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -22,10 +24,13 @@ import br.com.alura.loja.modelo.Projeto;
 public class ProjetoTest {
 
 	private HttpServer server;
+	private Client client;
 
 	@Before
 	public void init() throws Exception {
 		server = Servidor.startaServidor();
+		ClientConfig config = new ClientConfig(LoggingFilter.class);
+		client = ClientBuilder.newClient(config);
 	}
 	
 	@After
@@ -35,7 +40,6 @@ public class ProjetoTest {
 	
 	@Test
 	public void testaQueBuscaUmProjetoEsperado() {
-		Client client = ClientBuilder.newClient();
 		WebTarget target = client.target("http://localhost:8080");
 		String conteudo = target.path("/projetos/1").request().get(String.class);
 		Projeto projeto = (Projeto) new XStream().fromXML(conteudo);
@@ -49,12 +53,16 @@ public class ProjetoTest {
 		
 		String xml = projeto.toXML();
 		
-		Client client = ClientBuilder.newClient();
 		WebTarget target = client.target("http://localhost:8080");
 		Entity<String> entity = Entity.entity(xml, MediaType.APPLICATION_XML);
 		Response response = target.path("/projetos").request().post(entity);
 		
-		assertEquals("<status>Sucesso</status>", response.readEntity(String.class));
+		assertEquals(201, response.getStatus());
+		
+		String location = response.getHeaderString("Location");
+		String conteudo = client.target(location).request().get(String.class);
+		
+		assertTrue(conteudo.contains("Java"));
 	}
 	
 }

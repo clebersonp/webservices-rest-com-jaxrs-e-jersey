@@ -11,6 +11,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.filter.LoggingFilter;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,10 +25,12 @@ import br.com.alura.loja.modelo.Produto;
 public class ClienteTest {
 	
 	private HttpServer server;
-
+	private Client client;
 	@Before
 	public void init() throws Exception {
 		server = Servidor.startaServidor();
+		ClientConfig configuration = new ClientConfig(LoggingFilter.class);
+		client = ClientBuilder.newClient(configuration);
 	}
 	
 	@After
@@ -36,7 +40,6 @@ public class ClienteTest {
 	
 	@Test
 	public void testaQueBuscaUmCarrinhoEsperado() {
-		Client client = ClientBuilder.newClient();
 		WebTarget target = client.target("http://localhost:8080");
 		String conteudo = target.path("/carrinhos/1").request().get(String.class);
 		Carrinho carrinho = (Carrinho) new XStream().fromXML(conteudo);
@@ -56,12 +59,15 @@ public class ClienteTest {
 		
 		String xml = carrinho.toXML();
 		
-		Client cliente = ClientBuilder.newClient();
-		WebTarget target = cliente.target("http://localhost:8080");
+		WebTarget target = client.target("http://localhost:8080");
 		Entity<String> entity = Entity.entity(xml, MediaType.APPLICATION_XML);
 		Response response = target.path("/carrinhos").request().post(entity);
 		
-		assertEquals("<status>Sucesso</status>", response.readEntity(String.class));
+		String location = response.getHeaderString("Location");
+		String conteudo = client.target(location).request().get(String.class);
+
+		assertEquals(201, response.getStatus());
+		assertTrue(conteudo.contains("Rua das esmeraldas"));
 		
 	}
 	
